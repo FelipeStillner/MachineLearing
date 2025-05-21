@@ -2,17 +2,20 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-ALPHA = 0.10
-ITERATIONS = 200
-TEST_SIZE = 1000
+ALPHA = 0.001
+ITERATIONS = 10000
+TEST_SIZE = 500
+INPUT_LAYER_SIZE = 5
+HIDDEN_LAYER_SIZE = 20
+OUTPUT_LAYER_SIZE = 4
 
 
 def main():
     X_TRAIN, Y_TRAIN, X_TEST, Y_TEST = read_data()
-    alphas = [0.01, 0.05, 0.1, 0.5, 1]
-    for alpha in alphas:
-        print(f"Alpha: {alpha}")
-        w1, b1, w2, b2 = gradient_descent(X_TRAIN, Y_TRAIN, alpha, ITERATIONS)
+    vec = [1]
+    for i in vec:
+        print(f"Test: {i}")
+        w1, b1, w2, b2 = gradient_descent(X_TRAIN, Y_TRAIN, ALPHA, ITERATIONS)
         test_gradient_descent(w1, b1, w2, b2, X_TEST, Y_TEST)
 
 
@@ -83,23 +86,22 @@ def read_data() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     data_test = data[0:TEST_SIZE]
     data_train = data[TEST_SIZE:]
 
-    n_train = data_train.shape[1]
     data_train = data_train.T
-    y_train = data_train[0]
-    x_train = data_train[1:n_train] / 255.0
+    y_train = (data_train[7]).astype(np.int64) - 1
+    x_train = data_train[1:6]
 
-    n_test = data_test.shape[1]
     data_test = data_test.T
-    y_test = data_test[0]
-    x_test = data_test[1:n_test] / 255.0
+    y_test = data_test[7].astype(np.int64) - 1
+    x_test = data_test[1:6]
+
     return x_train, y_train, x_test, y_test
 
 
 def init_params() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    w1 = np.random.rand(10, 784) - 0.5
-    b1 = np.random.rand(10, 1) - 0.5
-    w2 = np.random.rand(10, 10) - 0.5
-    b2 = np.random.rand(10, 1) - 0.5
+    w1 = np.random.rand(HIDDEN_LAYER_SIZE, INPUT_LAYER_SIZE) - 0.5
+    b1 = np.random.rand(HIDDEN_LAYER_SIZE, 1) - 0.5
+    w2 = np.random.rand(OUTPUT_LAYER_SIZE, HIDDEN_LAYER_SIZE) - 0.5
+    b2 = np.random.rand(OUTPUT_LAYER_SIZE, 1) - 0.5
     return w1, b1, w2, b2
 
 
@@ -136,12 +138,13 @@ def relu(z: np.ndarray) -> np.ndarray:
 
 
 def softmax(z: np.ndarray) -> np.ndarray:
-    a = np.exp(z) / sum(np.exp(z))
+    exp_z = np.exp(z)
+    a = exp_z / np.sum(exp_z, axis=0, keepdims=True)
     return a
 
 
 def relu_deriv(z: np.ndarray) -> np.ndarray:
-    return z > 0
+    return np.float32(z > 0)
 
 
 def get_predictions(a2: np.ndarray) -> np.ndarray:
