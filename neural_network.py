@@ -6,17 +6,25 @@ ALPHA = 0.001
 ITERATIONS = 10000
 TEST_SIZE = 500
 INPUT_LAYER_SIZE = 5
-HIDDEN_LAYER_SIZE = 20
+HIDDEN_LAYER_SIZE = 5
 OUTPUT_LAYER_SIZE = 4
 
 
 def main():
-    X_TRAIN, Y_TRAIN, X_TEST, Y_TEST = read_data()
-    vec = [1]
+    vec = range(1, 10)
+    accuracies_train = []
+    accuracies_test = []
     for i in vec:
-        print(f"Test: {i}")
+        X_TRAIN, Y_TRAIN, X_TEST, Y_TEST = read_data()
         w1, b1, w2, b2 = gradient_descent(X_TRAIN, Y_TRAIN, ALPHA, ITERATIONS)
-        test_gradient_descent(w1, b1, w2, b2, X_TEST, Y_TEST)
+        accuracy_train = test_gradient_descent(w1, b1, w2, b2, X_TRAIN, Y_TRAIN)
+        accuracy_test = test_gradient_descent(w1, b1, w2, b2, X_TEST, Y_TEST)
+        print(f"Accuracy (Train {i}): {(100*accuracy_train):.2f}%")
+        print(f"Accuracy (Test {i}): {(100*accuracy_test):.2f}%")
+        accuracies_train.append(accuracy_train)
+        accuracies_test.append(accuracy_test)
+    print(f"Accuracy mean: {100*np.mean(accuracies_train):.2f}%")
+    print(f"Accuracy mean: {100*np.mean(accuracies_test):.2f}%")
 
 
 def gradient_descent(
@@ -44,7 +52,7 @@ def test_gradient_descent(
     a2 = forward_prop(w1, b1, w2, b2, X_TEST)[3]
     predictions = get_predictions(a2)
     accuracy = get_accuracy(predictions, Y_TEST)
-    print(f"Accuracy (Test): {(100*accuracy):.2f}%")
+    return accuracy
 
 
 def forward_prop(
