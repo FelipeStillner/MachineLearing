@@ -1,16 +1,21 @@
+from typing import Callable
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-ALPHA = 0.001
+ALPHA = 0.01
 ITERATIONS = 10000
 TEST_SIZE = 500
 INPUT_LAYER_SIZE = 5
 FIRST_LAYER_SIZE = 100
+FIRST_LAYER_ACTIVATION = "relu"
 SECOND_LAYER_SIZE = 100
+SECOND_LAYER_ACTIVATION = "relu"
 THIRD_LAYER_SIZE = 100
+THIRD_LAYER_ACTIVATION = "relu"
 OUTPUT_LAYER_SIZE = 4
-TIMES = 1
+OUTPUT_LAYER_ACTIVATION = "softmax"
+TIMES = 10
 
 
 def main():
@@ -22,6 +27,8 @@ def main():
         w1, b1, w2, b2, w3, b3, wf, bf = gradient_descent(
             X_TRAIN, Y_TRAIN, ALPHA, ITERATIONS
         )
+        if w1 is None:
+            continue
         accuracy_train = test_gradient_descent(
             w1, b1, w2, b2, w3, b3, wf, bf, X_TRAIN, Y_TRAIN
         )
@@ -32,6 +39,9 @@ def main():
         print(f"Accuracy (Test {i}): {(100*accuracy_test):.2f}%")
         accuracies_train.append(accuracy_train)
         accuracies_test.append(accuracy_test)
+    if len(accuracies_train) == 0:
+        print("Failed to converge in all the times")
+        return
     print(f"Accuracy mean: {100*np.mean(accuracies_train):.2f}%")
     print(f"Accuracy mean: {100*np.mean(accuracies_test):.2f}%")
     print(f"Accuracy Max(Train): {100*np.max(accuracies_train):.2f}%")
@@ -77,9 +87,12 @@ def gradient_descent(
             dbf,
             alpha,
         )
-        # if i % 100 == 0:
-        #     accuracy_train = test_gradient_descent(w1, b1, w2, b2, w3, b3, wf, bf, x, y)
-        #     print(f"Accuracy (Train: {i}): {(100*accuracy_train):.2f}%")
+        if i % 100 == 0:
+            accuracy_train = test_gradient_descent(w1, b1, w2, b2, w3, b3, wf, bf, x, y)
+            print(f"Accuracy (Train: {i}): {(100*accuracy_train):.2f}%")
+            if i == 100 and accuracy_train < 0.5:
+                print("Failed to converge")
+                return None, None, None, None, None, None, None, None
     return w1, b1, w2, b2, w3, b3, wf, bf
 
 
@@ -121,12 +134,15 @@ def forward_prop(
     np.ndarray,
     np.ndarray,
 ]:
+    l1_af, l1_deriv = get_activation(FIRST_LAYER_ACTIVATION)
+    l2_af, l2_deriv = get_activation(SECOND_LAYER_ACTIVATION)
+    l3_af, l3_deriv = get_activation(THIRD_LAYER_ACTIVATION)
     z1 = w1.dot(x) + b1
-    a1 = relu(z1)
+    a1 = l1_af(z1)
     z2 = w2.dot(a1) + b2
-    a2 = relu(z2)
+    a2 = l2_af(z2)
     z3 = w3.dot(a2) + b3
-    a3 = relu(z3)
+    a3 = l3_af(z3)
     zf = wf.dot(a3) + bf
     af = softmax(zf)
     return z1, a1, z2, a2, z3, a3, zf, af
@@ -148,18 +164,21 @@ def backward_prop(
     x: np.ndarray,
     y: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    l1_af, l1_deriv = get_activation(FIRST_LAYER_ACTIVATION)
+    l2_af, l2_deriv = get_activation(SECOND_LAYER_ACTIVATION)
+    l3_af, l3_deriv = get_activation(THIRD_LAYER_ACTIVATION)
     m = y.size
     one_hot_y = one_hot(y)
     dzf = af - one_hot_y
     dwf = 1 / m * dzf.dot(a3.T)
     dbf = 1 / m * np.sum(dzf)
-    dz3 = wf.T.dot(dzf) * relu_deriv(z3)
+    dz3 = wf.T.dot(dzf) * l3_deriv(z3)
     dw3 = 1 / m * dz3.dot(a2.T)
     db3 = 1 / m * np.sum(dz3)
-    dz2 = w3.T.dot(dz3) * relu_deriv(z2)
+    dz2 = w3.T.dot(dz3) * l2_deriv(z2)
     dw2 = 1 / m * dz2.dot(a1.T)
     db2 = 1 / m * np.sum(dz2)
-    dz1 = w2.T.dot(dz2) * relu_deriv(z1)
+    dz1 = w2.T.dot(dz2) * l1_deriv(z1)
     dw1 = 1 / m * dz1.dot(x.T)
     db1 = 1 / m * np.sum(dz1)
     return dw1, db1, dw2, db2, dw3, db3, dwf, dbf
@@ -247,15 +266,22 @@ def update_params(
 # ELEMENTARY FUNCTIONS:
 
 
+def get_activation(
+    activation: str,
+) -> tuple[Callable[[np.ndarray], np.ndarray], Callable[[np.ndarray], np.ndarray]]:
+    if activation == "relu":
+        return relu, relu_deriv
+    elif activation == "sigmoid":
+        return sigmoid, sigmoid_deriv
+    else:
+        raise ValueError(f"Invalid activation function: {activation}")
+
+
 def one_hot(y: np.ndarray) -> np.ndarray:
     one_hot_y = np.zeros((y.size, y.max() + 1))
     one_hot_y[np.arange(y.size), y] = 1
     one_hot_y = one_hot_y.T
     return one_hot_y
-
-
-def relu(z: np.ndarray) -> np.ndarray:
-    return np.maximum(z, 0)
 
 
 def softmax(z: np.ndarray) -> np.ndarray:
@@ -265,8 +291,21 @@ def softmax(z: np.ndarray) -> np.ndarray:
     return a
 
 
+def relu(z: np.ndarray) -> np.ndarray:
+    return np.maximum(z, 0)
+
+
 def relu_deriv(z: np.ndarray) -> np.ndarray:
     return np.float32(z > 0)
+
+
+def sigmoid(z: np.ndarray) -> np.ndarray:
+    return 1 / (1 + np.exp(-z))
+
+
+def sigmoid_deriv(z: np.ndarray) -> np.ndarray:
+    s = sigmoid(z)
+    return s * (1 - s)
 
 
 def get_predictions(a2: np.ndarray) -> np.ndarray:
