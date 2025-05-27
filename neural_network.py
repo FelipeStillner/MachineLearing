@@ -8,10 +8,11 @@ TEST_SIZE = 500
 INPUT_LAYER_SIZE = 5
 HIDDEN_LAYER_SIZE = 5
 OUTPUT_LAYER_SIZE = 4
+TIMES = 10
 
 
 def main():
-    vec = range(1, 10)
+    vec = range(TIMES)
     accuracies_train = []
     accuracies_test = []
     for i in vec:
@@ -25,6 +26,10 @@ def main():
         accuracies_test.append(accuracy_test)
     print(f"Accuracy mean: {100*np.mean(accuracies_train):.2f}%")
     print(f"Accuracy mean: {100*np.mean(accuracies_test):.2f}%")
+    print(f"Accuracy Max(Train): {100*np.max(accuracies_train):.2f}%")
+    print(f"Accuracy Max(Test): {100*np.max(accuracies_test):.2f}%")
+    print(f"Accuracy Min(Train): {100*np.min(accuracies_train):.2f}%")
+    print(f"Accuracy Min(Test): {100*np.min(accuracies_test):.2f}%")
 
 
 def gradient_descent(
