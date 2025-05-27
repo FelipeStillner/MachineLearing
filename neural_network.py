@@ -6,9 +6,11 @@ ALPHA = 0.001
 ITERATIONS = 10000
 TEST_SIZE = 500
 INPUT_LAYER_SIZE = 5
-HIDDEN_LAYER_SIZE = 5
+FIRST_LAYER_SIZE = 100
+SECOND_LAYER_SIZE = 100
+THIRD_LAYER_SIZE = 100
 OUTPUT_LAYER_SIZE = 4
-TIMES = 10
+TIMES = 1
 
 
 def main():
@@ -17,9 +19,9 @@ def main():
     accuracies_test = []
     for i in vec:
         X_TRAIN, Y_TRAIN, X_TEST, Y_TEST = read_data()
-        w1, b1, w2, b2 = gradient_descent(X_TRAIN, Y_TRAIN, ALPHA, ITERATIONS)
-        accuracy_train = test_gradient_descent(w1, b1, w2, b2, X_TRAIN, Y_TRAIN)
-        accuracy_test = test_gradient_descent(w1, b1, w2, b2, X_TEST, Y_TEST)
+        w1, b1, w2, b2, wf, bf = gradient_descent(X_TRAIN, Y_TRAIN, ALPHA, ITERATIONS)
+        accuracy_train = test_gradient_descent(w1, b1, w2, b2, wf, bf, X_TRAIN, Y_TRAIN)
+        accuracy_test = test_gradient_descent(w1, b1, w2, b2, wf, bf, X_TEST, Y_TEST)
         print(f"Accuracy (Train {i}): {(100*accuracy_train):.2f}%")
         print(f"Accuracy (Test {i}): {(100*accuracy_test):.2f}%")
         accuracies_train.append(accuracy_train)
@@ -34,16 +36,20 @@ def main():
 
 def gradient_descent(
     x: np.ndarray, y: np.ndarray, alpha: float, iterations: int
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    w1, b1, w2, b2 = init_params()
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    w1, b1, w2, b2, wf, bf = init_params()
     for i in range(iterations):
-        z1, a1, z2, a2 = forward_prop(w1, b1, w2, b2, x)
-        dw1, db1, dw2, db2 = backward_prop(z1, a1, z2, a2, w1, w2, x, y)
-        w1, b1, w2, b2 = update_params(w1, b1, w2, b2, dw1, db1, dw2, db2, alpha)
+        z1, a1, z2, a2, zf, af = forward_prop(w1, b1, w2, b2, wf, bf, x)
+        dw1, db1, dw2, db2, dwf, dbf = backward_prop(
+            z1, a1, z2, a2, zf, af, w1, w2, wf, x, y
+        )
+        w1, b1, w2, b2, wf, bf = update_params(
+            w1, b1, w2, b2, wf, bf, dw1, db1, dw2, db2, dwf, dbf, alpha
+        )
         # if i % 10 == 0:
         #     accuracy = get_accuracy(get_predictions(a2), y)
         #     print(f"Accuracy (Train: {i}): {(100*accuracy):.2f}%")
-    return w1, b1, w2, b2
+    return w1, b1, w2, b2, wf, bf
 
 
 def test_gradient_descent(
@@ -51,23 +57,33 @@ def test_gradient_descent(
     b1: np.ndarray,
     w2: np.ndarray,
     b2: np.ndarray,
+    wf: np.ndarray,
+    bf: np.ndarray,
     X_TEST: np.ndarray,
     Y_TEST: np.ndarray,
 ):
-    a2 = forward_prop(w1, b1, w2, b2, X_TEST)[3]
-    predictions = get_predictions(a2)
+    af = forward_prop(w1, b1, w2, b2, wf, bf, X_TEST)[5]
+    predictions = get_predictions(af)
     accuracy = get_accuracy(predictions, Y_TEST)
     return accuracy
 
 
 def forward_prop(
-    w1: np.ndarray, b1: np.ndarray, w2: np.ndarray, b2: np.ndarray, x: np.ndarray
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    w1: np.ndarray,
+    b1: np.ndarray,
+    w2: np.ndarray,
+    b2: np.ndarray,
+    wf: np.ndarray,
+    bf: np.ndarray,
+    x: np.ndarray,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     z1 = w1.dot(x) + b1
     a1 = relu(z1)
     z2 = w2.dot(a1) + b2
-    a2 = softmax(z2)
-    return z1, a1, z2, a2
+    a2 = relu(z2)
+    zf = wf.dot(a2) + bf
+    af = softmax(zf)
+    return z1, a1, z2, a2, zf, af
 
 
 def backward_prop(
@@ -75,20 +91,26 @@ def backward_prop(
     a1: np.ndarray,
     z2: np.ndarray,
     a2: np.ndarray,
+    zf: np.ndarray,
+    af: np.ndarray,
     w1: np.ndarray,
     w2: np.ndarray,
+    wf: np.ndarray,
     x: np.ndarray,
     y: np.ndarray,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     m = y.size
     one_hot_y = one_hot(y)
-    dz2 = a2 - one_hot_y
+    dzf = af - one_hot_y
+    dwf = 1 / m * dzf.dot(a2.T)
+    dbf = 1 / m * np.sum(dzf)
+    dz2 = wf.T.dot(dzf) * relu_deriv(z2)
     dw2 = 1 / m * dz2.dot(a1.T)
     db2 = 1 / m * np.sum(dz2)
     dz1 = w2.T.dot(dz2) * relu_deriv(z1)
     dw1 = 1 / m * dz1.dot(x.T)
     db1 = 1 / m * np.sum(dz1)
-    return dw1, db1, dw2, db2
+    return dw1, db1, dw2, db2, dwf, dbf
 
 
 def read_data() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -110,12 +132,16 @@ def read_data() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     return x_train, y_train, x_test, y_test
 
 
-def init_params() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    w1 = np.random.rand(HIDDEN_LAYER_SIZE, INPUT_LAYER_SIZE) - 0.5
-    b1 = np.random.rand(HIDDEN_LAYER_SIZE, 1) - 0.5
-    w2 = np.random.rand(OUTPUT_LAYER_SIZE, HIDDEN_LAYER_SIZE) - 0.5
-    b2 = np.random.rand(OUTPUT_LAYER_SIZE, 1) - 0.5
-    return w1, b1, w2, b2
+def init_params() -> (
+    tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+):
+    w1 = np.random.rand(FIRST_LAYER_SIZE, INPUT_LAYER_SIZE) - 0.5
+    b1 = np.random.rand(FIRST_LAYER_SIZE, 1) - 0.5
+    w2 = np.random.rand(SECOND_LAYER_SIZE, FIRST_LAYER_SIZE) - 0.5
+    b2 = np.random.rand(SECOND_LAYER_SIZE, 1) - 0.5
+    wf = np.random.rand(OUTPUT_LAYER_SIZE, SECOND_LAYER_SIZE) - 0.5
+    bf = np.random.rand(OUTPUT_LAYER_SIZE, 1) - 0.5
+    return w1, b1, w2, b2, wf, bf
 
 
 def update_params(
@@ -123,17 +149,23 @@ def update_params(
     b1: np.ndarray,
     w2: np.ndarray,
     b2: np.ndarray,
+    wf: np.ndarray,
+    bf: np.ndarray,
     dw1: np.ndarray,
     db1: np.ndarray,
     dw2: np.ndarray,
     db2: np.ndarray,
+    dwf: np.ndarray,
+    dbf: np.ndarray,
     alpha: float,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     w1 = w1 - alpha * dw1
     b1 = b1 - alpha * db1
     w2 = w2 - alpha * dw2
     b2 = b2 - alpha * db2
-    return w1, b1, w2, b2
+    wf = wf - alpha * dwf
+    bf = bf - alpha * dbf
+    return w1, b1, w2, b2, wf, bf
 
 
 # ELEMENTARY FUNCTIONS:
