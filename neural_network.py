@@ -77,9 +77,9 @@ def gradient_descent(
             dbf,
             alpha,
         )
-        # if i % 10 == 0:
-        #     accuracy = get_accuracy(get_predictions(a2), y)
-        #     print(f"Accuracy (Train: {i}): {(100*accuracy):.2f}%")
+        # if i % 100 == 0:
+        #     accuracy_train = test_gradient_descent(w1, b1, w2, b2, w3, b3, wf, bf, x, y)
+        #     print(f"Accuracy (Train: {i}): {(100*accuracy_train):.2f}%")
     return w1, b1, w2, b2, w3, b3, wf, bf
 
 
